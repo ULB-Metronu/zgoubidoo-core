@@ -1,0 +1,6 @@
+numba
+numpy
+pip
+plotly
+matplotlib
+pytest

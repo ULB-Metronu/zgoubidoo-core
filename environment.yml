@@ -1,0 +1,20 @@
+# Run:
+#    conda env create --file environment.yml
+# Run (overrides the environment name):
+#    conda env create --file environment.yml --name your_env_name
+# Customized environment "Python 3.8"
+name: py38
+channels:
+  # Anaconda
+  - anaconda
+  # Conda forge distribution
+  # https://conda-forge.org
+  - conda-forge
+  # Default distribution from Continuum/Anaconda
+  - default
+dependencies:
+  - python=3.8
+  - anaconda
+  - pip
+  - pytest
+  - plotly
