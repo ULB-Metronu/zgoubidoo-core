@@ -14,7 +14,10 @@ channels:
   - default
 dependencies:
   - python=3.8
-  - anaconda
   - pip
   - pytest
   - plotly
+  - numba
+  - numpy
+  - matplotlib
+  - scipy

@@ -8,9 +8,7 @@ import numpy as _np
 
 @_dataclass
 class Field:
-    """Particle coordinates in 6D phase space.
-
-    Follows Zgoubi's convention.
+    """Field coordinates in 3D cartesian space.
 
     Examples:
         >>> c = Field()
