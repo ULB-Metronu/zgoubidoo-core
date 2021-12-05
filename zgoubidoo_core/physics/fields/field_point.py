@@ -7,14 +7,14 @@ import numpy as _np
 
 
 @_dataclass
-class Field:
-    """Field coordinates in 3D cartesian space.
+class Field_point:
+    """Field values in 3D cartesian space.
 
     Examples:
-        >>> c = Field()
+        >>> c = Field_point()
         >>> c.y
         0.0
-        >>> c = Field(1.0, 1.0, 0.0)
+        >>> c = Field_point(1.0, 1.0, 0.0)
         >>> c.t
         1.0
     """
