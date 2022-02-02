@@ -6,13 +6,11 @@ import numpy as np
 import scipy.special
 from physics.coordinates import Coordinates
 from physics.particles import Particle
-from physics.fields.field_point import Field_point
-from physics.fields.field import Field
 
 
-def integrate(part: Particle, b: Field, e: Field, max_step: int, step_size: float):
-    b_val = Field_point(0, 0, 1)
-    e_val = Field_point(0, 0, 0)
+def integrate(part: Particle, b: tuple, e: tuple, max_step: int, step_size: float):
+    b_val = (0, 0, 1)
+    e_val = (0, 0, 0)
 
     print("e : ", e_val)
     print("b : ", b_val)
@@ -26,7 +24,7 @@ def integrate(part: Particle, b: Field, e: Field, max_step: int, step_size: floa
         print(new_r)
 
 
-def iteration(coords: Coordinates, u: np.array, rigidity: float, step: float, b: Field_point, e: Field_point):
+def iteration(coords: Coordinates, u: np.array, rigidity: float, step: float, b: tuple, e: tuple):
     """An iteration of the ray-tracking process
 
     :param coords: The coordinates of the particle
@@ -46,7 +44,7 @@ def iteration(coords: Coordinates, u: np.array, rigidity: float, step: float, b:
     return r_m1, u_m1, rigidity_m1
 
 
-def derive_u(b: Field_point, e: Field_point, rigidity: float, u: np.array) -> np.array:
+def derive_u(b: tuple, e: tuple, rigidity: float, u: np.array) -> np.array:
     """
     Computes the derivatives of u at the current point M0. Uses different methods according to the presence of fields.
     :param b: Magnetic field at M0
@@ -76,7 +74,7 @@ def derive_u_no_fields(u: np.array) -> np.array:
     return u_derivs
 
 
-def derive_u_in_b(u: np.array, b: Field_point, rigidity: float) -> np.array:
+def derive_u_in_b(u: np.array, b: tuple, rigidity: float) -> np.array:
     b_derivs = np.zeros(6, 3)
     b_derivs[0, :] = b.array/rigidity
     u_derivs = np.zeros((6, 3))
@@ -108,6 +106,6 @@ def taylors(coords, u_derivs, step) -> (np.array, np.array):
 
     r_m1[1, :] += coords.cartesian()
     for i in range(1, 6):
-        r_m1[1, :] += u_derivs[i, :]*(step**i)
-        u_m1[1, :] += u_derivs[i-1, :]*(step**i)
+        r_m1 += u_derivs[i, :]*(step**i)
+        u_m1 += u_derivs[i-1, :]*(step**i)
     return r_m1, u_m1

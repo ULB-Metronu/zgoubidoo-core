@@ -2,32 +2,27 @@
 
 A dataclass is used for the implementation but conversions to common formats are also provided.
 """
-from dataclasses import dataclass as _dataclass
 import numpy as _np
-from coordinates import Coordinates
+from physics.coordinates import Coordinates
+from numba import int32, float32
+from numba.experimental import jitclass
+
+spec = [
+    ('rigidity', float32),
+    ('coords', Coordinates)
+]
 
 
-@_dataclass
+@jitclass(spec)
 class Particle:
-    """Particle coordinates in 6D phase space.
-
-    Follows Zgoubi's convention.
-
-    Examples:
-        >>> c = Particle()
-        >>> c.y
-        0.0
-        >>> c = Coordinates(1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
-        >>> c.t
-        1.0
+    """Particle representation in 6D phase space.
     """
-    coords: Coordinates
-    """Coordinates of the particle"""
-    rigidity: float
-    """Rigidity of the particle (T*m)"""
+    def __init__(self, coords: Coordinates = Coordinates(), rigidity: float = 1):
+        self.rigidity = rigidity
+        self.coords = coords.cartesian()
 
     def __getitem__(self, item: int):
-        return getattr(self, list(self.__dataclass_fields__.keys())[item])
+        return getattr(self, list(self.__dict__.keys())[item])
 
     def __eq__(self, other) -> bool:
         return self.list == other.list
@@ -42,10 +37,6 @@ class Particle:
         """Provides a flat list."""
         return list(self.__dict__.values())
 
-    @property
-    def rigidity(self) -> float:
-        return self.rigidity
-
     def u(self) -> _np.array:
         return self.coords.u()
 
@@ -54,3 +45,7 @@ class Particle:
 
     def cartesian(self) -> _np.array:
         return self.coords.cartesian()
+
+    def __hash__(self):
+        coords_hash = self.coords.__hash__()
+        return (coords_hash + self.rigidity) * coords_hash % self.rigidity
