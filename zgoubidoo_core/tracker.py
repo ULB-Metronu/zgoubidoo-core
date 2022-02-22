@@ -2,110 +2,150 @@
 
     Todo : complete doc
 """
+import math
+from types import FunctionType
+
+from numba import jit
 import numpy as np
 import scipy.special
-from physics.coordinates import Coordinates
-from physics.particles import Particle
+
+from zgoubidoo_core.physics.coordinates import Coordinates
+from zgoubidoo_core.physics.particles import Particle
 
 
-def integrate(part: Particle, b: tuple, e: tuple, max_step: int, step_size: float):
-    b_val = (0, 0, 1)
-    e_val = (0, 0, 0)
-
-    print("e : ", e_val)
-    print("b : ", b_val)
-    new_r = part.coords
+def integrate(part: Particle, b: '(r: ndarray) -> ndarray', e: '(r: ndarray) -> ndarray', max_step: int, step_size: float):
+    new_r = part.cartesian()  # np_array x,y,z
     new_u = part.u()
     new_rigid = part.rigidity
+    results = integr_loop(b, e, max_step, new_r, new_rigid, new_u, step_size)
+    return results
+
+
+@jit(nopython=True)
+def integr_loop(b: '(r: ndarray) -> ndarray',
+                e: '(r: ndarray) -> ndarray',
+                max_step: int,
+                new_r: np.ndarray,
+                new_rigid: float,
+                new_u: np.ndarray,
+                step_size: float):
+    results = [(new_r, new_u, new_rigid)]
     for i in range(max_step):
-        x, y, z = part.coords.cartesian()
-        new_r, new_u, new_rigidity = iteration(part.coords, new_u, new_rigidity, step_size, b_val, e_val)
-        part.set_coords(new_r, new_u, new_rigidity)
-        print(new_r)
+        new_r, new_u, new_rigid = iteration(new_r, new_u, new_rigid, step_size, b, e)
+        results.append((new_r, new_u, new_rigid))
+    return results
 
 
-def iteration(coords: Coordinates, u: np.array, rigidity: float, step: float, b: tuple, e: tuple):
+@jit(nopython=True)
+def iteration(r: np.array, u: np.array, rigidity: float, step: float, b: FunctionType, e: FunctionType):
     """An iteration of the ray-tracking process
 
-    :param coords: The coordinates of the particle
+    The functions b and e must return the partial derivatives of B and E s.t.
+    b(r)[i, j] = B^(i)_j
+    e(r)[i, j] = E^(i)_j
+
+    :param r: Coordinates of the particle
+    :param u: Unit velocity of the particle
     :param rigidity: Rigidity of the particle
     :param step: The step of the discrete integration process
     :param b: Magnetic field on the point of process
     :param e: Electric field on the point of process
     :return:
     """
-    (x, y, z) = coords.cartesian()
-    #u = coords.u()
-    u_derivs = derive_u(b, e, rigidity, u)
+    b_partials: np.array = b(r)
+    e_partials: np.array = e(r)
+    u_derivs = derive_u(b_partials, e_partials, rigidity, u)
 
-    rigidity_m1 = update_rigidity(u, rigidity, e) if np.any(e.array) else rigidity
+    rigidity_m1 = update_rigidity(u, rigidity, e) if np.any(e_partials[0, :]) else rigidity
 
-    r_m1, u_m1 = taylors(coords, u_derivs, step)
+    r_m1, u_m1 = taylors(r, u_derivs, step)
     return r_m1, u_m1, rigidity_m1
 
 
-def derive_u(b: tuple, e: tuple, rigidity: float, u: np.array) -> np.array:
+@jit(nopython=True)
+def derive_u(b_partials: np.array, e_partials: np.array, rigidity: float, u: np.array) -> np.array:
     """
     Computes the derivatives of u at the current point M0. Uses different methods according to the presence of fields.
-    :param b: Magnetic field at M0
-    :param e: Electric field at M0
+    :param b_partials: Magnetic field at M0
+    :param e_partials: Electric field at M0
     :param rigidity: Rigidity of the particle at M0
     :param u: Unitary velocity vector of the particle at M0
     :return: The derivatives of u to the sixth order
     """
-    if not np.any(b) and not np.any(e):
+    B = b_partials[0, :]
+    E = e_partials[0, :]
+    if not np.any(B) and not np.any(E):
         return derive_u_no_fields(u)
-    elif not np.any(e):
-        return derive_u_in_b(u, b, rigidity)
-    elif not np.any(b):
-        return derive_u_in_e(u, e, rigidity)
+    elif not np.any(E):
+        return derive_u_in_b(u, b_partials, rigidity)
+    elif not np.any(B):
+        return derive_u_in_e(u, e_partials, rigidity)
     else:
-        return derive_u_in_both(u, b, e, rigidity)
+        return derive_u_in_both(u, b_partials, e_partials, rigidity)
 
 
+@jit(nopython=True)
 def derive_u_no_fields(u: np.array) -> np.array:
     """
     Compute the derivatives of u when no field is present. Thus u remains constant
     :param u: Unitary velocity vector
-    :return: A five by three array. Line i represents the ith derivative of u (d^i)u/(ds)^i
+    :return: A 5x3 array. Line i represents the ith derivative of u (d^i)u/(ds)^i
     """
     u_derivs = np.zeros((5, 3))
     u_derivs[0, :] = u
     return u_derivs
 
 
-def derive_u_in_b(u: np.array, b: tuple, rigidity: float) -> np.array:
-    b_derivs = np.zeros(6, 3)
-    b_derivs[0, :] = b.array/rigidity
+@jit(nopython=True)
+def derive_u_in_b(u: np.array, b_partials: np.array, rigidity: float) -> np.array:
+    b_derivs = np.zeros((6, 3))
+    b_derivs[0, :] = b_partials[0, :] / rigidity
     u_derivs = np.zeros((6, 3))
     u_derivs[0, :] = u
 
     for i in range(5):
         for k in range(i+1):
-            u_derivs[i+1, :] += scipy.special.comb(i, k) * np.cross(u_derivs[k, :], b_derivs[i-k, :])
+            u_derivs[i+1, :] += binom(i, k) * np.cross(u_derivs[k, :], b_derivs[i-k, :])
             # TODO : add derivations of B which depend on u_derivs and partial derivs of b
     return u_derivs
 
 
-def derive_u_in_e(u, e, rigidity) -> np.array:
+@jit(nopython=True)
+def derive_u_in_e(u, e_partials, rigidity) -> np.array:
     pass
 
 
-def derive_u_in_both(u, b, e, rigidity) -> np.array:
+@jit(nopython=True)
+def derive_u_in_both(u, b_partials, e_partials, rigidity) -> np.array:
     pass
 
 
+@jit(nopython=True)
 def update_rigidity(u, rigidity, e) -> float:
     # TODO
     pass
 
 
-def taylors(coords, u_derivs, step) -> (np.array, np.array):
-    r_m1 = np.zeros((1, 3))
-    u_m1 = np.zeros((1, 3))
+@jit(nopython=True)
+def taylors(xyz: np.array, u_derivs, step) -> (np.array, np.array):
+    r_m1 = np.zeros(3)
+    u_m1 = np.zeros(3)
 
-    r_m1[1, :] += coords.cartesian()
+    r_m1[:] += xyz
     for i in range(1, 6):
         r_m1 += u_derivs[i, :]*(step**i)
         u_m1 += u_derivs[i-1, :]*(step**i)
     return r_m1, u_m1
+
+
+@jit(nopython=True)
+def factorial(n):
+    fact = 1
+    for i in range(1, n + 1):
+        fact = fact * i
+    return fact
+
+
+@jit(nopython=True)
+def binom(n, k):
+    return factorial(n) // factorial(k) //factorial(n - k)

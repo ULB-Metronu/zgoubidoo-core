@@ -5,21 +5,8 @@ A dataclass is used for the implementation but conversions to common formats are
 from dataclasses import dataclass as _dataclass
 import numpy as _np
 from math import cos, sin
-from numba import int32, float32
-from numba.experimental import jitclass
-
-spec = [
-    ('x', float32),
-    ('y', float32),
-    ('z', float32),
-    ('t', float32),
-    ('p', float32),
-    ('d', float32),
-    ('iex', float32),
-]
 
 
-@jitclass(spec)
 class Coordinates:
     """Particle coordinates in 6D phase space.
 
@@ -78,7 +65,4 @@ class Coordinates:
         return _np.array((u_x, u_y, u_z))
 
     def cartesian(self) -> _np.array:
-        return _np.array((self.x, self.y, self.z))
-
-    def __hash__(self):
-        return (self.x + self.y + self.z + self.t + self.p + self.d) * (self.x*self.y*self.z)
+        return _np.array((self.x, self.y, self.z), float)
