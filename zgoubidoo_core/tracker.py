@@ -13,11 +13,12 @@ from zgoubidoo_core.physics.coordinates import Coordinates
 from zgoubidoo_core.physics.particles import Particle
 
 
-def integrate(part: Particle, b: '(r: ndarray) -> ndarray', e: '(r: ndarray) -> ndarray', max_step: int, step_size: float):
-    new_r = part.cartesian()  # np_array x,y,z
-    new_u = part.u()
+def integrate(part: Particle, b: '(r: ndarray) -> tuple', e: '(r: ndarray) -> tuple', max_step: int, step_size: float):
+    r = part.cartesian()  # np_array x,y,z
+    u = part.u()
+    print(u)
     new_rigid = part.rigidity
-    results = integr_loop(b, e, max_step, new_r, new_rigid, new_u, step_size)
+    results = integr_loop(b, e, max_step, r, new_rigid, u, step_size)
     return results
 
 
@@ -33,6 +34,7 @@ def integr_loop(b: '(r: ndarray) -> ndarray',
     for i in range(max_step):
         new_r, new_u, new_rigid = iteration(new_r, new_u, new_rigid, step_size, b, e)
         results.append((new_r, new_u, new_rigid))
+        print()
     return results
 
 
@@ -56,10 +58,13 @@ def iteration(r: np.array, u: np.array, rigidity: float, step: float, b: Functio
     e_partials: np.array = e(r)
     u_derivs = derive_u(b_partials, e_partials, rigidity, u)
 
-    rigidity_m1 = update_rigidity(u, rigidity, e) if np.any(e_partials[0, :]) else rigidity
+    if np.any(e_partials[0, :]):
+        rigidity = update_rigidity(u, rigidity, e)
 
+    print(r)
     r_m1, u_m1 = taylors(r, u_derivs, step)
-    return r_m1, u_m1, rigidity_m1
+    print('new r:', r_m1)
+    return r_m1, u_m1, rigidity
 
 
 @jit(nopython=True)
@@ -107,6 +112,7 @@ def derive_u_in_b(u: np.array, b_partials: np.array, rigidity: float) -> np.arra
         for k in range(i+1):
             u_derivs[i+1, :] += binom(i, k) * np.cross(u_derivs[k, :], b_derivs[i-k, :])
             # TODO : add derivations of B which depend on u_derivs and partial derivs of b
+    print(u_derivs)
     return u_derivs
 
 
@@ -123,18 +129,17 @@ def derive_u_in_both(u, b_partials, e_partials, rigidity) -> np.array:
 @jit(nopython=True)
 def update_rigidity(u, rigidity, e) -> float:
     # TODO
-    pass
+    return rigidity
 
 
 @jit(nopython=True)
-def taylors(xyz: np.array, u_derivs, step) -> (np.array, np.array):
-    r_m1 = np.zeros(3)
+def taylors(r_m0: np.array, u_derivs, step) -> (np.array, np.array):
     u_m1 = np.zeros(3)
 
-    r_m1[:] += xyz
-    for i in range(1, 6):
-        r_m1 += u_derivs[i, :]*(step**i)
-        u_m1 += u_derivs[i-1, :]*(step**i)
+    r_m1 = r_m0
+    for i in range(6):
+        r_m1 += u_derivs[i, :]*(step**(i+1))/factorial(i+1)
+        u_m1 += u_derivs[i, :]*(step**i)/factorial(i)
     return r_m1, u_m1
 
 
@@ -148,4 +153,4 @@ def factorial(n):
 
 @jit(nopython=True)
 def binom(n, k):
-    return factorial(n) // factorial(k) //factorial(n - k)
+    return factorial(n) // factorial(k) // factorial(n - k)

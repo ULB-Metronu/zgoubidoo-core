@@ -9,7 +9,7 @@ from zgoubidoo_core.physics.coordinates import Coordinates
 class Particle:
     """Particle representation in 6D phase space.
     """
-    def __init__(self, coords: Coordinates = Coordinates(), rigidity: float = 1):
+    def __init__(self, coords: Coordinates = Coordinates(), rigidity: float = 100):
         self.rigidity = rigidity
         self.complete_coords = coords
 

@@ -12,7 +12,8 @@ def plot(res):
     positions = np.zeros((3, len(res)+1))
     for idx, val in enumerate(res):
         positions[:, idx] += val[0]
-    print(positions[0,:])
+
+
     fig = go.Figure(data=go.Scatter3d(
         x=positions[0, :], y=positions[1, :], z=positions[2, :],
         marker=dict(
@@ -53,14 +54,14 @@ def plot(res):
 
 @jit(nopython=True)
 def b(r: np.array) -> np.array:
-    res = np.zeros((5, 3))
-    res[0, :] = 0, 0, 1  # B_z = 1
+    res = np.zeros((6, 3))
+    res[0, 2] = 1  # B_z = 1
     return res
 
 
 @jit(nopython=True)
 def e(r: np.array):
-    res = np.zeros((5, 3))
+    res = np.zeros((6, 3))
     return res
 
 
@@ -72,12 +73,11 @@ def main():
     print("Welcome in zgoubidoo_core")
     c = Coordinates()
     print("coords :", c.cartesian())
-    p = Particle(coords=c, rigidity=10e-5)
-    max_step = 100
-    step = 10e-6
+    p = Particle(coords=c, rigidity=1)
+    max_step = 400
+    step = 10e-4
     res = tracker.integrate(p, b, e, max_step, step)
 
-    #print(res)
     plot(res)
 
 
