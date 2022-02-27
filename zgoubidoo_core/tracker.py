@@ -7,10 +7,9 @@ from types import FunctionType
 
 from numba import jit
 import numpy as np
-import scipy.special
 
-from zgoubidoo_core.physics.coordinates import Coordinates
 from zgoubidoo_core.physics.particles import Particle
+from zgoubidoo_core.physics.fields import fields_derivs
 
 
 def integrate(part: Particle, b: '(r: ndarray) -> tuple', e: '(r: ndarray) -> tuple', max_step: int, step_size: float):
@@ -21,9 +20,9 @@ def integrate(part: Particle, b: '(r: ndarray) -> tuple', e: '(r: ndarray) -> tu
     return results
 
 
-# @jit(nopython=True)
-def integr_loop(b: '(r: ndarray) -> ndarray',
-                e: '(r: ndarray) -> ndarray',
+# @jit(nopython=True) # Can't jit because of the np.copy TODO
+def integr_loop(b: '(r: ndarray) -> tuple',
+                e: '(r: ndarray) -> tuple',
                 max_step: int,
                 new_r: np.ndarray,
                 new_rigid: float,
@@ -32,19 +31,21 @@ def integr_loop(b: '(r: ndarray) -> ndarray',
     results = [(np.copy(new_r), np.copy(new_u), np.copy(new_rigid))]
     for i in range(max_step):
         new_r, new_u, new_rigid = iteration(new_r, new_u, new_rigid, step_size, b, e)
-        # print('new_r :', new_r)
         results.append((np.copy(new_r), np.copy(new_u), np.copy(new_rigid)))
-        # print()
     return results
 
 
 @jit(nopython=True)
-def iteration(r: np.array, u: np.array, rigidity: float, step: float, b: FunctionType, e: FunctionType):
+def iteration(r: np.array,
+              u: np.array,
+              rigidity: float,
+              step: float,
+              b: '(r: ndarray) -> tuple',
+              e: '(r: ndarray) -> tuple'):
     """An iteration of the ray-tracking process
 
     The functions b and e must return the partial derivatives of B and E s.t.
-    b(r)[i, j] = B^(i)_j
-    e(r)[i, j] = E^(i)_j
+    b(r)[i][j, k, l, ...] = B^(j, k, l...)_i where i is the ith cartesian coordinate
 
     :param r: Coordinates of the particle
     :param u: Unit velocity of the particle
@@ -54,11 +55,11 @@ def iteration(r: np.array, u: np.array, rigidity: float, step: float, b: Functio
     :param e: Electric field on the point of process
     :return:
     """
-    b_partials: np.array = b(r)
-    e_partials: np.array = e(r)
+    b_partials: tuple = b(r)
+    e_partials: tuple = e(r)
     u_derivs = derive_u(b_partials, e_partials, rigidity, u)
 
-    if np.any(e_partials[0, :]):
+    if np.any(e_partials[0][:]):
         rigidity = update_rigidity(u, rigidity, e)
 
     r_m1, u_m1 = taylors(r, u_derivs, step)
@@ -75,8 +76,8 @@ def derive_u(b_partials: np.array, e_partials: np.array, rigidity: float, u: np.
     :param u: Unitary velocity vector of the particle at M0
     :return: The derivatives of u to the sixth order
     """
-    B = b_partials[0, :]
-    E = e_partials[0, :]
+    B = b_partials[0]
+    E = e_partials[0]
     if not np.any(B) and not np.any(E):
         return derive_u_no_fields(u)
     elif not np.any(E):
@@ -102,15 +103,14 @@ def derive_u_no_fields(u: np.array) -> np.array:
 @jit(nopython=True)
 def derive_u_in_b(u: np.array, b_partials: np.array, rigidity: float) -> np.array:
     b_derivs = np.zeros((6, 3))
-    b_derivs[0, :] = b_partials[0, :] / rigidity
+    b_partials[0][:] = b_partials[0][:] / rigidity
     u_derivs = np.zeros((6, 3))
     u_derivs[0, :] = u
 
     for i in range(5):
+        b_derivs[i, :] = fields_derivs.derive_field(b_partials, u_derivs, order=i)
         for k in range(i+1):
             u_derivs[i+1, :] += binom(i, k) * np.cross(u_derivs[k, :], b_derivs[i-k, :])
-            # TODO : add derivations of B which depend on u_derivs and partial derivs of b
-    # print(u_derivs)
     return u_derivs
 
 
