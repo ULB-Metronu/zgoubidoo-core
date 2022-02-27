@@ -16,13 +16,12 @@ from zgoubidoo_core.physics.particles import Particle
 def integrate(part: Particle, b: '(r: ndarray) -> tuple', e: '(r: ndarray) -> tuple', max_step: int, step_size: float):
     r = part.cartesian()  # np_array x,y,z
     u = part.u()
-    print(u)
     new_rigid = part.rigidity
     results = integr_loop(b, e, max_step, r, new_rigid, u, step_size)
     return results
 
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def integr_loop(b: '(r: ndarray) -> ndarray',
                 e: '(r: ndarray) -> ndarray',
                 max_step: int,
@@ -30,11 +29,12 @@ def integr_loop(b: '(r: ndarray) -> ndarray',
                 new_rigid: float,
                 new_u: np.ndarray,
                 step_size: float):
-    results = [(new_r, new_u, new_rigid)]
+    results = [(np.copy(new_r), np.copy(new_u), np.copy(new_rigid))]
     for i in range(max_step):
         new_r, new_u, new_rigid = iteration(new_r, new_u, new_rigid, step_size, b, e)
-        results.append((new_r, new_u, new_rigid))
-        print()
+        # print('new_r :', new_r)
+        results.append((np.copy(new_r), np.copy(new_u), np.copy(new_rigid)))
+        # print()
     return results
 
 
@@ -61,9 +61,7 @@ def iteration(r: np.array, u: np.array, rigidity: float, step: float, b: Functio
     if np.any(e_partials[0, :]):
         rigidity = update_rigidity(u, rigidity, e)
 
-    print(r)
     r_m1, u_m1 = taylors(r, u_derivs, step)
-    print('new r:', r_m1)
     return r_m1, u_m1, rigidity
 
 
@@ -112,7 +110,7 @@ def derive_u_in_b(u: np.array, b_partials: np.array, rigidity: float) -> np.arra
         for k in range(i+1):
             u_derivs[i+1, :] += binom(i, k) * np.cross(u_derivs[k, :], b_derivs[i-k, :])
             # TODO : add derivations of B which depend on u_derivs and partial derivs of b
-    print(u_derivs)
+    # print(u_derivs)
     return u_derivs
 
 
@@ -138,8 +136,8 @@ def taylors(r_m0: np.array, u_derivs, step) -> (np.array, np.array):
 
     r_m1 = r_m0
     for i in range(6):
-        r_m1 += u_derivs[i, :]*(step**(i+1))/factorial(i+1)
-        u_m1 += u_derivs[i, :]*(step**i)/factorial(i)
+        r_m1 += u_derivs[i, :]*(math.pow(step, i+1))/factorial(i+1)
+        u_m1 += u_derivs[i, :]*(math.pow(step, i))/factorial(i)
     return r_m1, u_m1
 
 
