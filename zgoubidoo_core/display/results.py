@@ -10,8 +10,8 @@ def plot(res):
     fig = go.Figure(data=go.Scatter3d(
         x=positions[0, :], y=positions[1, :], z=positions[2, :],
         marker=dict(
-            size=4,
-            color=positions[0,:],
+            size=1,
+            color=positions[0, :],
             colorscale='Viridis',
         ),
         line=dict(
