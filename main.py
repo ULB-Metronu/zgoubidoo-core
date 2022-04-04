@@ -3,7 +3,9 @@ from zgoubidoo_core.physics.particles import Particle
 from zgoubidoo_core.physics.fields.fields_init import b_partials_unif_z, init_field
 import zgoubidoo_core.tracker as tracker
 import numpy as np
-from zgoubidoo_core.display.results import plot
+
+from zgoubidoo_core.postprocessing.display.results import *
+from zgoubidoo_core.postprocessing.data.results import results_to_df
 
 from numba import jit
 
@@ -21,6 +23,12 @@ def b2(r: np.ndarray) -> tuple:
     partials[1][2, 2] = 0.5   # dB/dz = (0, 0, 0.5)
     return partials
 
+@jit(nopython=True)
+def bend_1m(r: np.ndarray) -> tuple:
+    if 0 <= r[0] <= 1:
+        return b_partials_unif_z(r, 0.5)
+    else:
+        return init_field()
 
 @jit(nopython=True)
 def e(r: np.array):
@@ -34,14 +42,18 @@ def main():
     :return: None
     """
     print("Welcome in zgoubidoo_core")
-    c = Coordinates(0, 0, 0, 0.1, 0, 1)   # particle staring at (0, 0, 1)
-    p = Particle(coords=c, rigidity=2.19)  # Proton with 230MeV
-    max_step = 10000
-    step = 10e-3
+    c = Coordinates(0, 0, 0, 0, 0, 1)
+    p = Particle(coords=c, rigidity=2.32182)  # Proton with 230MeV
+    max_step = 1000
+    step = 10e-4
 
     res = tracker.integrate(p, b2, e, max_step, step)
 
-    plot(res)
+    df = results_to_df(res)
+
+    pos = position_from_res(df)
+    # plot_pos(pos)
+    compare_res_csv(df, 'Data/bend_validation/data_nominal.csv')
 
 
 if __name__ == '__main__':

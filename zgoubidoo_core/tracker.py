@@ -7,12 +7,16 @@ from types import FunctionType
 
 from numba import jit
 import numpy as np
+from typing import List
 
 from zgoubidoo_core.physics.particles import Particle
 from zgoubidoo_core.physics.fields import fields_derivs
 
 
-def integrate(part: Particle, b: '(r: ndarray) -> tuple', e: '(r: ndarray) -> tuple', max_step: int, step_size: float):
+def integrate(part: Particle,
+              b: '(r: ndarray) -> tuple',
+              e: '(r: ndarray) -> tuple',
+              max_step: int, step_size: float) -> List:
     r = part.cartesian()  # np_array x,y,z
     u = part.u()
     new_rigid = part.rigidity
@@ -27,7 +31,7 @@ def integr_loop(b: '(r: ndarray) -> tuple',
                 new_r: np.ndarray,
                 new_rigid: float,
                 new_u: np.ndarray,
-                step_size: float):
+                step_size: float) -> List:
     results = [(np.copy(new_r), np.copy(new_u), np.copy(new_rigid))]
     for i in range(max_step):
         new_r, new_u, new_rigid = iteration(new_r, new_u, new_rigid, step_size, b, e)

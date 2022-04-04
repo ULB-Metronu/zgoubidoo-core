@@ -1,18 +1,16 @@
+import pandas
 import plotly.graph_objects as go
+import plotly.express as px
 import numpy as np
 
 
-def plot(res):
-    positions = np.zeros((3, len(res)+1))
-    for idx, val in enumerate(res):
-        positions[:, idx] += val[0]
-
+def plot_pos(positions):
     fig = go.Figure(data=go.Scatter3d(
-        x=positions[0, :], y=positions[1, :], z=positions[2, :],
+        x=positions['X'],
+        y=positions['Y'],
+        z=positions['Z'],
         marker=dict(
             size=1,
-            color=positions[0, :],
-            colorscale='Viridis',
         ),
         line=dict(
             color='darkblue',
@@ -41,5 +39,27 @@ def plot(res):
             aspectmode='manual'
         ),
     )
+    fig.show()
 
+
+def position_from_res(res: pandas.DataFrame) -> pandas.DataFrame:
+    return res[['X', 'Y', 'Z']]
+
+
+def plot_csv_xy(filename):
+    df = pandas.read_csv(filename)
+    fig = px.line(df, x='X', y='Y')
+    return fig
+
+
+def compare_res_csv(res: pandas.DataFrame, csv_file: str):
+    df: pandas.DataFrame = pandas.read_csv(csv_file)
+    res['id'] = 'zgoubidoo'
+    positions = res[['X', 'Y', 'id']]
+    df['id'] = 'zgoubi'
+    print(df.head())
+    print(positions.head())
+    df = pandas.concat([df, positions])
+    print(df)
+    fig = px.scatter(df, x="X", y="Y", color="id")
     fig.show()
