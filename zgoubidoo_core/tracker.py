@@ -34,7 +34,9 @@ def integr_loop(b: '(r: ndarray) -> tuple',
                 step_size: float) -> List:
     results = [(np.copy(new_r), np.copy(new_u), np.copy(new_rigid))]
     for i in range(max_step):
-        new_r, new_u, new_rigid = iteration(new_r, new_u, new_rigid, step_size, b, e)
+        B = b(new_r)
+        B[0][:] /= new_rigid # TODO : check if every component must be /brho
+        new_r, new_u, new_rigid = iteration(new_r, new_u, new_rigid, step_size, B, e)
         results.append((np.copy(new_r), np.copy(new_u), np.copy(new_rigid)))
     return results
 
@@ -44,7 +46,7 @@ def iteration(r: np.array,
               u: np.array,
               rigidity: float,
               step: float,
-              b: '(r: ndarray) -> tuple',
+              B: tuple,
               e: '(r: ndarray) -> tuple'):
     """An iteration of the ray-tracking process
 
@@ -59,7 +61,7 @@ def iteration(r: np.array,
     :param e: Electric field on the point of process
     :return:
     """
-    b_partials: tuple = b(r)
+    b_partials: tuple = B
     e_partials: tuple = e(r)
     u_derivs = derive_u(b_partials, e_partials, rigidity, u)
 
