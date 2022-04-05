@@ -19,8 +19,8 @@ def integrate(part: Particle,
               max_step: int, step_size: float) -> List:
     r = part.cartesian()  # np_array x,y,z
     u = part.u()
-    new_rigid = part.rigidity
-    results = integr_loop(b, e, max_step, r, new_rigid, u, step_size)
+    rigid = part.rigidity
+    results = integr_loop(b, e, max_step, r, rigid, u, step_size)
     return results
 
 
@@ -35,7 +35,6 @@ def integr_loop(b: '(r: ndarray) -> tuple',
     results = [(np.copy(new_r), np.copy(new_u), np.copy(new_rigid))]
     for i in range(max_step):
         B = b(new_r)
-        B[0][:] /= new_rigid # TODO : check if every component must be /brho
         new_r, new_u, new_rigid = iteration(new_r, new_u, new_rigid, step_size, B, e)
         results.append((np.copy(new_r), np.copy(new_u), np.copy(new_rigid)))
     return results
@@ -109,7 +108,7 @@ def derive_u_no_fields(u: np.array) -> np.array:
 @jit(nopython=True)
 def derive_u_in_b(u: np.array, b_partials: np.array, rigidity: float) -> np.array:
     b_derivs = np.zeros((6, 3))
-    b_partials[0][:] = b_partials[0][:] / rigidity
+    b_partials[0][:] = b_partials[0][:] / rigidity # TODO : diviser toutes les dérivées partielles par la rigidité
     u_derivs = np.zeros((6, 3))
     u_derivs[0, :] = u
 

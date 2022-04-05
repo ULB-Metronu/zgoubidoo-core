@@ -48,18 +48,40 @@ def position_from_res(res: pandas.DataFrame) -> pandas.DataFrame:
 
 def plot_csv_xy(filename):
     df = pandas.read_csv(filename)
-    fig = px.line(df, x='X', y='Y')
-    return fig
+    fig = px.line(df, x='X', y='Y', title=filename)
+    fig.show()
 
 
 def compare_res_csv(res: pandas.DataFrame, csv_file: str):
     df: pandas.DataFrame = pandas.read_csv(csv_file)
-    res['id'] = 'zgoubidoo'
-    positions = res[['X', 'Y', 'id']]
-    df['id'] = 'zgoubi'
-    print(df.head())
-    print(positions.head())
-    df = pandas.concat([df, positions])
-    print(df)
-    fig = px.scatter(df, x="X", y="Y", color="id")
+    fig = go.Figure(
+        layout=go.Layout(
+            title=go.layout.Title(text=csv_file)
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            mode='markers',
+            x=res['X'], y=res['Y'],
+            marker=dict(
+                size=10,
+                color='Red',
+            ),
+            name='Zgoubidoo',
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            mode='markers',
+            x=df['X'], y=df['Y'],
+            marker=dict(
+                size=5,
+                color='LightBlue',
+                symbol='cross'
+            ),
+            name='Zgoubi',
+        )
+    )
     fig.show()
