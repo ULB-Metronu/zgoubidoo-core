@@ -7,10 +7,8 @@ def derive_field(field_partials, u_derivs, order: int) -> np.ndarray:
     """
     Compute the order'th derivatives of a field (noted "b") over a displacement ds : dB/ds
 
-
-    Field partials are the partial derivatives of b at current point s.t.
-    b[i][j, k, l, ...] = B^(j, k, l...)_i where i is the ith cartesian coordinate
-    :param field_partials: Partial derivatives of the field
+    :param field_partials: partial derivatives of b at current point s.t. b[i][j, k, l, ...] = B^(j, k, l...)_i where
+    i is the ith cartesian coordinate
     :param u_derivs: Derivatives du/ds up to order i-1
     :param order: Order of derivative to compute
     :return: Derivatives of a field up to a given order
@@ -42,7 +40,7 @@ def d0_field(field_partials, u_derivs) -> np.ndarray:
 
 @jit(nopython=True)
 def d1_field(field_partials, u_derivs) -> np.ndarray:
-    res = np.zeros(3)
+    res = np.zeros(3, dtype=np.float64)
     for i in range(3):
         res += field_partials[1][:, i]*u_derivs[0, i]
     return res
@@ -50,7 +48,7 @@ def d1_field(field_partials, u_derivs) -> np.ndarray:
 
 @jit(nopython=True)
 def d2_field(field_partials, u_derivs) -> np.ndarray:
-    res = np.zeros(3)
+    res = np.zeros(3, dtype=np.float64)
     b_parts1 = field_partials[1]
     b_parts2 = field_partials[2]
     for i in range(3):
@@ -62,8 +60,8 @@ def d2_field(field_partials, u_derivs) -> np.ndarray:
 
 @jit(nopython=True)
 def d3_field(field_partials, u_derivs) -> np.ndarray:
-    res = np.zeros(3)
-    temp = np.zeros(3)
+    res = np.zeros(3, dtype=np.float64)
+    temp = np.zeros(3, dtype=np.float64)
     u = u_derivs[0, :]
     b_parts1 = field_partials[1]
     b_parts2 = field_partials[2]
@@ -80,10 +78,10 @@ def d3_field(field_partials, u_derivs) -> np.ndarray:
 
 @jit(nopython=True)
 def d4_field(field_partials, u_derivs) -> np.ndarray:
-    res = np.zeros(3)
-    temp3 = np.zeros(3)
-    temp4 = np.zeros(3)
-    temp6 = np.zeros(3)
+    res = np.zeros(3, dtype=np.float64)
+    temp3 = np.zeros(3, dtype=np.float64)
+    temp4 = np.zeros(3, dtype=np.float64)
+    temp6 = np.zeros(3, dtype=np.float64)
     u = u_derivs[0, :]
     b_parts1 = field_partials[1]
     b_parts2 = field_partials[2]
@@ -97,8 +95,7 @@ def d4_field(field_partials, u_derivs) -> np.ndarray:
             temp4 += b_parts2[:, i, j]*u_derivs[2, i]*u[j]
             for k in range(3):
                 temp6 += b_parts3[:, i, j, k]*u_derivs[1, i]*u[j]*u[k]
-                for l in range(3):
-                    res += b_parts4[:, i, j, k, l]*u[i]*u[j]*u[k]*u[l]
+                for m in range(3):
+                    res += b_parts4[:, i, j, k, m]*u[i]*u[j]*u[k]*u[m]
 
     return res + (3*temp3) + (4*temp4) + (6*temp6)
-

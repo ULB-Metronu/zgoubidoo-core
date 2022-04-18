@@ -30,13 +30,13 @@ def e(r: np.array):
 
 
 def compute_correspondance():
-    max_step = 997
+    max_step = 999
     step = 10e-4
 
     c_nominal = Coordinates(0, 0, 0, 0, 0, 1)
-    c_offset_y = Coordinates(0.01, 0, 0, 0, -0.00108, 1)
+    c_offset_y = Coordinates(0.01, 0, 0, 0, -0.0010830381, 1)
     c_offset_yp = Coordinates(0, 0.001, 0, 0, 0, 1)
-    c_offset_z = Coordinates(0, 0, 0.01, 0.000233, 0, 1)
+    c_offset_z = Coordinates(0, 0, 0.01, 0.00023323042777606976, 0, 1)
     c_offset_zp = Coordinates(0, 0, 0, 0.001, 0, 1)
     coords = [
         c_nominal,
@@ -76,6 +76,10 @@ def test_diffs():
             print(os.getcwd())
             exit()
 
+    xdist = lambda row: math.sqrt(math.pow(row.X - row.zgoubX, 2))
+    ydist = lambda row: math.sqrt(math.pow(row.Y - row.zgoubY, 2))
+    zdist = lambda row: math.sqrt(math.pow(row.Z - row.zgoubZ, 2))
+
     dist = lambda row: math.sqrt(math.pow(row.X - row.zgoubX, 2) +
                                  math.pow(row.Y - row.zgoubY, 2) +
                                  math.pow(row.Z - row.zgoubZ, 2))
@@ -84,7 +88,6 @@ def test_diffs():
         df['zgoubY'] = zgoubis_dfs[idx]['Y']
         df['zgoubZ'] = zgoubis_dfs[idx]['Z']
         df['dist'] = df.apply(dist, axis=1)
-        print(df.head())
         fig = px.line(df, x=np.arange(0, 1000, 1), y='dist', title=filenames[idx])
         fig.show()
 
@@ -102,7 +105,7 @@ def test_plot_correspondence():
 
 def main():
     if os.path.isdir('Data'):
-        # test_diffs()
+        test_diffs()
         test_plot_correspondence()
     else:
         print('No Data folder')

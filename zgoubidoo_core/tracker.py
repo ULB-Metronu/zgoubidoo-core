@@ -100,16 +100,16 @@ def derive_u_no_fields(u: np.array) -> np.array:
     :param u: Unitary velocity vector
     :return: A 5x3 array. Line i represents the ith derivative of u (d^i)u/(ds)^i
     """
-    u_derivs = np.zeros((5, 3))
+    u_derivs = np.zeros((5, 3), dtype=np.float64)
     u_derivs[0, :] = u
     return u_derivs
 
 
 @jit(nopython=True)
 def derive_u_in_b(u: np.array, b_partials: np.array, rigidity: float) -> np.array:
-    b_derivs = np.zeros((6, 3))
-    b_partials[0][:] = b_partials[0][:] / rigidity # TODO : diviser toutes les dérivées partielles par la rigidité
-    u_derivs = np.zeros((6, 3))
+    b_derivs = np.zeros((6, 3), dtype=np.float64)
+    b_partials[0][:] = b_partials[0][:] / rigidity  # TODO : diviser toutes les dérivées partielles par la rigidité?
+    u_derivs = np.zeros((6, 3), dtype=np.float64)
     u_derivs[0, :] = u
 
     for i in range(5):
@@ -137,7 +137,7 @@ def update_rigidity(u, rigidity, e) -> float:
 
 @jit(nopython=True)
 def taylors(r_m0: np.array, u_derivs, step) -> (np.array, np.array):
-    u_m1 = np.zeros(3)
+    u_m1 = np.zeros(3, dtype=np.float64)
 
     r_m1 = r_m0
     for i in range(6):

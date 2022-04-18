@@ -1,3 +1,5 @@
+import scipy.special
+
 from zgoubidoo_core.physics.coordinates import Coordinates
 from zgoubidoo_core.physics.particles import Particle
 from zgoubidoo_core.physics.fields import fields_init
@@ -51,3 +53,8 @@ def test_taylor():
     assert (new_u == real_u).all
     assert (new_r == real_r1).all
 
+
+def test_binom():
+    for i in range(5):
+        for k in range(i+1):
+            assert tracker.binom(i, k) == scipy.special.binom(i, k)
