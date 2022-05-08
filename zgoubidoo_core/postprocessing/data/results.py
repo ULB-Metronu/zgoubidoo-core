@@ -14,5 +14,5 @@ def results_to_df(results):
             val[2]]
         )
 
-    df = pandas.DataFrame(values, columns=['X', 'Y', 'Z', 'UX', 'UY', 'UZ', 'Brho'])
+    df = pandas.DataFrame(values, columns=['X', 'Y', 'Z', 'UX', 'UY', 'UZ', 'Brho'], dtype='float64')
     return df

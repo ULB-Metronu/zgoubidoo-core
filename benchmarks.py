@@ -1,16 +1,21 @@
+from __future__ import annotations
+
 import math
 import os
+from typing import List, Dict
 
 import numpy as np
 import pandas
+import pandas as pd
 from numba import jit
 
+import zgoubidoo_core.postprocessing.display.results
 from zgoubidoo_core import tracker
 from zgoubidoo_core.physics.coordinates import Coordinates
 from zgoubidoo_core.physics.fields.fields_init import b_partials_unif_z, init_field
 from zgoubidoo_core.physics.particles import Particle
 from zgoubidoo_core.postprocessing.data.results import results_to_df
-from zgoubidoo_core.postprocessing.display.results import compare_res_csv
+from zgoubidoo_core.postprocessing.display.results import plot_both_trajectories
 
 import plotly.express as px
 
@@ -25,91 +30,203 @@ def bend_1m(r: np.ndarray) -> tuple:
 
 @jit(nopython=True)
 def e(r: np.array):
-    res = b_partials_unif_z(r, 0)  # E(r) = 0
+    res = init_field()  # E(r) = 0
     return res
 
 
-def compute_correspondance():
-    max_step = 999
-    step = 10e-4
+def coords_from_zgoubi_df(df):
+    x = df.iloc[0]['X']
+    y = df.iloc[0]['Y']
+    z = df.iloc[0]['Z']
+    t = df.iloc[0]['T']
+    p = df.iloc[0]['P']
+    return Coordinates.from_list([x, y, z, t, p])
 
-    c_nominal = Coordinates(0, 0, 0, 0, 0, 1)
-    c_offset_y = Coordinates(0.01, 0, 0, 0, -0.0010830381, 1)
-    c_offset_yp = Coordinates(0, 0.001, 0, 0, 0, 1)
-    c_offset_z = Coordinates(0, 0, 0.01, 0.00023323042777606976, 0, 1)
-    c_offset_zp = Coordinates(0, 0, 0, 0.001, 0, 1)
-    coords = [
-        c_nominal,
-        c_offset_y,
-        c_offset_yp,
-        c_offset_z,
-        c_offset_zp
-    ]
-    parts = []
-    for c in coords:
-        parts.append(Particle(coords=c, rigidity=2.32182))
-    parts.append(Particle(coords=c_nominal, rigidity=2.554002))
 
-    dfs = []
-    for p in parts:
-        res = tracker.integrate(p, bend_1m, e, max_step, step)
-        dfs.append(results_to_df(res))
+def rename_zgoubis_columns(df: pd.DataFrame):
+    return df.rename(columns={'X': 'zgoubX', 'Y': 'zgoubY', 'Z': 'zgoubZ'})
+
+
+def compute_correspondence(csv_files: dict[str: float | int],
+                           b_field,
+                           e_field,
+                           step=10e-4,
+                           data_dir="Data") \
+        -> Dict[str: pd.DataFrame] | None:
+    """
+    Computes the correspondence between the zgoubidoo and zgoubi computations given in the csv files.
+    This tracks particles according to the first coordinate set of every csv_file and the given brho.
+
+    :param step:
+    :param e_field:
+    :param b_field:
+    :param csv_files: Dictionnary where the keys are filenames (csv files from zgoubi computations) and values are their
+    initial rigidity
+    :param data_dir: Optionnal directory where the csv_files are.
+    :return: A dict of pair filename / dataframes containing tracked particles coordinates or None if there was an error
+    """
+
+    dfs = {}
+    for f, rigidity in csv_files.items():
+        if os.path.isfile(f):
+            df = pandas.read_csv(f)
+            df.drop(df.tail(2).index, inplace=True)  # Remove last line as zgoubi computes special last coords
+            max_step = df.shape[0]  # Number of line of csv_file (without header)
+            c = coords_from_zgoubi_df(df)
+            print("File :", f, "Coords :", c)
+            p = Particle(c, rigidity)
+            print("Integrating from file", f, "with rigidity", rigidity, "with particule of coords :")
+            print(p.complete_coords)
+            res = tracker.integrate(p, b_field, e_field, max_step, step)
+            zgoubidoo_df = results_to_df(res)
+            # To avoid having columns with the same name
+            df = rename_zgoubis_columns(df)
+            df = df.join(zgoubidoo_df)
+            dfs[f] = df
+        else:
+            print('Missing file "' + f + '", could not compute.')
+            print(os.getcwd())
+            continue
+
     return dfs
 
 
-def test_diffs():
-    dfs = compute_correspondance()
-    filenames = [
-        'data_nominal.csv',
-        'data_offset_y.csv',
-        'data_offset_yp.csv',
-        'data_offset_z.csv',
-        'data_offset_zp.csv',
-        'data_offset_dr.csv',
-    ]
-    zgoubis_dfs = []
-    for f in filenames:
-        if os.path.isfile('Data/bend_validation/' + f):
-            zgoubis_dfs.append(pandas.read_csv('Data/bend_validation/' + f))
-        else:
-            print('Missing file "' + f, '"exiting.')
-            print(os.getcwd())
-            exit()
+def plot_dists(dfs: Dict[str: pd.DataFrame], dist_method=None):
+    """
+    Plots the point wise distance between the elements from zgoubis and zgoubidoos integrated trajectories
+    :param dfs:
+    :param dist_method: Euclidian distance is used by default, available options are 'x', 'y', 'z'
+    :return: None
+    """
 
-    xdist = lambda row: math.sqrt(math.pow(row.X - row.zgoubX, 2))
-    ydist = lambda row: math.sqrt(math.pow(row.Y - row.zgoubY, 2))
-    zdist = lambda row: math.sqrt(math.pow(row.Z - row.zgoubZ, 2))
+    def xdist(row):
+        return abs(row.X - row.zgoubX)
 
-    dist = lambda row: math.sqrt(math.pow(row.X - row.zgoubX, 2) +
-                                 math.pow(row.Y - row.zgoubY, 2) +
-                                 math.pow(row.Z - row.zgoubZ, 2))
-    for idx, df in enumerate(dfs):
-        df['zgoubX'] = zgoubis_dfs[idx]['X']
-        df['zgoubY'] = zgoubis_dfs[idx]['Y']
-        df['zgoubZ'] = zgoubis_dfs[idx]['Z']
-        df['dist'] = df.apply(dist, axis=1)
-        fig = px.line(df, x=np.arange(0, 1000, 1), y='dist', title=filenames[idx])
+    def ydist(row):
+        return abs(row.Y - row.zgoubY)
+
+    def zdist(row):
+        return abs(row.Z - row.zgoubZ)
+
+    def dist(row):
+        return math.sqrt(math.pow(row.X - row.zgoubX, 2) +
+                         math.pow(row.Y - row.zgoubY, 2) +
+                         math.pow(row.Z - row.zgoubZ, 2))
+
+    dist_axis = "euclidian"
+    if dist_method is None:
+        dist_method = dist
+    elif dist_method == 'x':
+        dist_method = xdist
+        dist_axis = "along x"
+    elif dist_method == 'y':
+        dist_method = ydist
+        dist_axis = "along y"
+    elif dist_method == 'z':
+        dist_method = zdist
+        dist_axis = "along z"
+    else:
+        dist_method = dist
+
+    for filename, df in dfs.items():
+        df['dist'] = df.apply(dist_method, axis=1, raw=False)
+        fig = px.line(df, x=np.arange(0, df.shape[0], 1), y='dist', title=filename + ", distance is " + dist_axis)
         fig.show()
 
 
-def test_plot_correspondence():
-    dfs = compute_correspondance()
+def plot_correspondence(dfs: Dict):
+    """
+    Plot the trajectories computed by zgoubi and zgoubidoo
 
-    compare_res_csv(dfs[0], 'Data/bend_validation/data_nominal.csv')
-    compare_res_csv(dfs[1], 'Data/bend_validation/data_offset_y.csv')
-    compare_res_csv(dfs[2], 'Data/bend_validation/data_offset_yp.csv')
-    compare_res_csv(dfs[3], 'Data/bend_validation/data_offset_z.csv')
-    compare_res_csv(dfs[4], 'Data/bend_validation/data_offset_zp.csv')
-    compare_res_csv(dfs[5], 'Data/bend_validation/data_offset_dr.csv')
+    :param dfs: dict of the form {filename :dataframe}
+    :return: None
+    """
+
+    for f_name, df in dfs.items():
+        plot_both_trajectories(df, f_name, [('X', 'Y'), ('zgoubX', 'zgoubY')])
 
 
 def main():
-    if os.path.isdir('Data'):
-        test_diffs()
-        test_plot_correspondence()
-    else:
-        print('No Data folder')
+    dir_path = 'Data/bend_validation/'
 
+    # List files from the data directory
+    files: List[str] = []
+    for (f, dir_names, f_names) in os.walk(dir_path):
+        for f_name in f_names:
+            files.append(f+os.sep+f_name)
+
+    # Generate dict from file list
+    file_dict = {}
+    default_brho = 2.32182
+    for filename in files:
+        tokens = filename.split(sep=".")
+        tok = "".join(tokens[:-1])
+
+        # get brho %age
+        p = float(tok.split(sep='_')[-1])/100
+        file_dict[filename] = p*default_brho
+
+
+    # DEBUG
+    file_dict = {"Data/bend_validation/new_tests/data_y_m01_100.csv": default_brho,
+                 "Data/bend_validation/data_offset_y_01_100.csv": default_brho,
+                 "Data/bend_validation/new_tests/data_y_01_dr_105.csv": 1.05*default_brho,
+                 "Data/bend_validation/new_tests/data_y_05_100.csv": default_brho}
+
+    # Calculation procedure
+    dfs = compute_correspondence(file_dict,
+                                 b_field=bend_1m,
+                                 e_field=e)
+    # dfs["Data/bend_validation/new_tests/data_y_m01_100.csv"].to_csv('y_m01_100.csv')
+    # dfs["Data/bend_validation/new_tests/data_y_05_100.csv"].to_csv('y_05_100.csv')
+    # dfs["Data/bend_validation/data_offset_y_01_100.csv"].to_csv('y_01_100.csv')
+    plot_dists(dfs, dist_method='')
+    # plot_dists(dfs, dist_method='x')
+    plot_dists(dfs, dist_method='y')
+
+    plot_correspondence(dfs)
+
+
+def randtest(y_offset=0.1):
+    c = Coordinates(0, 0, 0, 0, 0, 1)
+    c1 = Coordinates(0, y_offset, 0, 0, 0, 1)
+
+    p = Particle(coords=c, rigidity=2.32182)  # Proton with 230MeV
+    p1 = Particle(coords=c1, rigidity=2.32182)  # Proton with 230MeV
+
+    max_step = 1000
+    step = 10e-4
+
+    res = tracker.integrate(p, bend_1m, e, max_step, step)
+    df = results_to_df(res)
+    df = zgoubidoo_core.postprocessing.display.results.position_from_res(df)
+
+    res = tracker.integrate(p1, bend_1m, e, max_step, step)
+    df1 = results_to_df(res)
+    df1 = zgoubidoo_core.postprocessing.display.results.position_from_res(df1)
+
+    df1 = df1.rename(columns={'X': 'off_X', 'Y': 'off_Y', 'Z': 'off_Z'})
+
+    df = df.join(df1)
+    # zgoubidoo_core.postprocessing.display.results.plot_both_trajectories(df, 'normal vs offset y', [('X', 'Y'), ('off_X', 'off_Y')])
+
+    def ydist(row):
+        # return abs(abs(row.Y - row.off_Y) - y_offset)
+        return row.Y - (row.off_Y - y_offset)
+
+    def xdist(row):
+        return abs(row.X - row.off_X) - y_offset
+
+    def dist(row):
+        return math.sqrt(math.pow(row.X - row.off_X, 2) +
+                         math.pow(row.Y - row.off_Y, 2) +
+                         math.pow(row.Z - row.off_Z, 2)) - y_offset
+    df['dist'] = df.apply(ydist, axis=1, raw=False)
+    fig = px.line(df, x=np.arange(0, df.shape[0], 1), y='dist', title="Normal vs Offset y of " + str(y_offset) + ", distance is along y")
+    fig.show()
 
 if __name__ == '__main__':
     main()
+    # offsets = [0.01, 0.1, 0.5, 1]
+    # for offset in offsets:
+    #     randtest(offset)

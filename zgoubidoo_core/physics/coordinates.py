@@ -16,18 +16,12 @@ class Coordinates:
         >>> c = Coordinates()
         >>> c.y
         0.0
-        >>> c = Coordinates(1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+        >>> c = Coordinates(0.0,1.0,0.0,1.0,0.0,0.0)
         >>> c.t
         1.0
     """
 
-    def __init__(self,
-                 y: float = 0,
-                 t: float = 0,
-                 z: float = 0,
-                 p: float = 0,
-                 x: float = 0,
-                 d: float = 1):
+    def __init__(self, x: float = 0, y: float = 0, z: float = 0, t: float = 0, p: float = 0, d: float = 1):
         self.d = d
         self.x = x
         self.y = y
@@ -42,6 +36,9 @@ class Coordinates:
     def __eq__(self, other) -> bool:
         return self.list == other.list
 
+    def __repr__(self):
+        return str(self.list)
+
     @property
     def array(self) -> _np.array:
         """Provides a numpy array."""
@@ -50,12 +47,16 @@ class Coordinates:
     @property
     def list(self) -> list:
         """Provides a flat list."""
-        return [self.y,
-                self.t,
+        return [self.x,
+                self.y,
                 self.z,
+                self.t,
                 self.p,
-                self.x,
                 self.d]
+
+    @classmethod
+    def from_list(cls, coords_list):
+        return cls(*coords_list)
 
     def u(self) -> _np.array:
         cos_p = cos(self.p)

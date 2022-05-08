@@ -42,7 +42,7 @@ def main():
 
     res = tracker.integrate(p, b1, e, max_step, step)
     df = results_to_df(res)
-    compare_res_csv(df, 'Data/bend_validation/data_nominal.csv')
+    plot_both_trajectories(df, 'Data/bend_validation/data_nominal_100.csv')
 
 
 if __name__ == '__main__':

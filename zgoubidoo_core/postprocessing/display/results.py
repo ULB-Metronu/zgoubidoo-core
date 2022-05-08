@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 import pandas
 import plotly.graph_objects as go
 import plotly.express as px
@@ -52,18 +54,17 @@ def plot_csv_xy(filename):
     fig.show()
 
 
-def compare_res_csv(res: pandas.DataFrame, csv_file: str):
-    df: pandas.DataFrame = pandas.read_csv(csv_file)
+def plot_both_trajectories(df: pandas.DataFrame, title: str, col_names: List[Tuple[str, str]]):
     fig = go.Figure(
         layout=go.Layout(
-            title=go.layout.Title(text=csv_file)
+            title=go.layout.Title(text=title)
         )
     )
 
     fig.add_trace(
         go.Scatter(
             mode='markers',
-            x=res['X'], y=res['Y'],
+            x=df[col_names[0][0]], y=df[col_names[0][1]],
             marker=dict(
                 size=10,
                 color='Red',
@@ -75,7 +76,7 @@ def compare_res_csv(res: pandas.DataFrame, csv_file: str):
     fig.add_trace(
         go.Scatter(
             mode='markers',
-            x=df['X'], y=df['Y'],
+            x=df[col_names[1][0]], y=df[col_names[1][1]],
             marker=dict(
                 size=5,
                 color='LightBlue',

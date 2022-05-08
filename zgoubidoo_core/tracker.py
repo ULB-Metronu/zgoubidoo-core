@@ -35,7 +35,8 @@ def integr_loop(b: '(r: ndarray) -> tuple',
     results = [(np.copy(new_r), np.copy(new_u), np.copy(new_rigid))]
     for i in range(max_step):
         B = b(new_r)
-        new_r, new_u, new_rigid = iteration(new_r, new_u, new_rigid, step_size, B, e)
+        E = e(new_r)
+        new_r, new_u, new_rigid = iteration(new_r, new_u, new_rigid, step_size, B, E)
         results.append((np.copy(new_r), np.copy(new_u), np.copy(new_rigid)))
     return results
 
@@ -46,7 +47,7 @@ def iteration(r: np.array,
               rigidity: float,
               step: float,
               B: tuple,
-              e: '(r: ndarray) -> tuple'):
+              E: tuple):
     """An iteration of the ray-tracking process
 
     The functions b and e must return the partial derivatives of B and E s.t.
@@ -56,16 +57,16 @@ def iteration(r: np.array,
     :param u: Unit velocity of the particle
     :param rigidity: Rigidity of the particle
     :param step: The step of the discrete integration process
-    :param b: Magnetic field on the point of process
-    :param e: Electric field on the point of process
+    :param B: Magnetic field on the point of process
+    :param E: Electric field on the point of process
     :return:
     """
     b_partials: tuple = B
-    e_partials: tuple = e(r)
+    e_partials: tuple = E
     u_derivs = derive_u(b_partials, e_partials, rigidity, u)
 
     if np.any(e_partials[0][:]):
-        rigidity = update_rigidity(u, rigidity, e)
+        rigidity = update_rigidity(u, rigidity, E)
 
     r_m1, u_m1 = taylors(r, u_derivs, step)
     return r_m1, u_m1, rigidity
@@ -108,7 +109,7 @@ def derive_u_no_fields(u: np.array) -> np.array:
 @jit(nopython=True)
 def derive_u_in_b(u: np.array, b_partials: np.array, rigidity: float) -> np.array:
     b_derivs = np.zeros((6, 3), dtype=np.float64)
-    b_partials[0][:] = b_partials[0][:] / rigidity  # TODO : diviser toutes les dérivées partielles par la rigidité?
+    b_partials[0][:] = b_partials[0][:] / rigidity  # TODO : diviser toutes les dérivées partielles par la rigidité? Envie de dire que oui (cf pg21 de la doc)
     u_derivs = np.zeros((6, 3), dtype=np.float64)
     u_derivs[0, :] = u
 
@@ -138,8 +139,8 @@ def update_rigidity(u, rigidity, e) -> float:
 @jit(nopython=True)
 def taylors(r_m0: np.array, u_derivs, step) -> (np.array, np.array):
     u_m1 = np.zeros(3, dtype=np.float64)
-
-    r_m1 = r_m0
+    r_m1 = np.zeros(3, dtype=np.float64)
+    r_m1 += r_m0
     for i in range(6):
         r_m1 += u_derivs[i, :]*(math.pow(step, i+1))/factorial(i+1)
         u_m1 += u_derivs[i, :]*(math.pow(step, i))/factorial(i)
