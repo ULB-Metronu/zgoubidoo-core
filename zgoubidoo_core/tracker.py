@@ -7,7 +7,7 @@ from types import FunctionType
 
 from numba import jit
 import numpy as np
-from typing import List
+from typing import List, Tuple
 
 from zgoubidoo_core.physics.particles import Particle
 from zgoubidoo_core.physics.fields import fields_derivs
@@ -46,8 +46,8 @@ def iteration(r: np.array,
               u: np.array,
               rigidity: float,
               step: float,
-              B: tuple,
-              E: tuple):
+              B: Tuple,
+              E: Tuple):
     """An iteration of the ray-tracking process
 
     The functions b and e must return the partial derivatives of B and E s.t.

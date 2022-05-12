@@ -70,13 +70,11 @@ def compute_correspondence(csv_files: dict[str: float | int],
     for f, rigidity in csv_files.items():
         if os.path.isfile(f):
             df = pandas.read_csv(f)
-            df.drop(df.tail(2).index, inplace=True)  # Remove last line as zgoubi computes special last coords
+            df.drop(df.tail(1).index, inplace=True)  # Remove last line as zgoubi computes special last coords
             max_step = df.shape[0]  # Number of line of csv_file (without header)
+            print("Integrating", f, "for", max_step, "steps of size", step, '\n')
             c = coords_from_zgoubi_df(df)
-            print("File :", f, "Coords :", c)
             p = Particle(c, rigidity)
-            print("Integrating from file", f, "with rigidity", rigidity, "with particule of coords :")
-            print(p.complete_coords)
             res = tracker.integrate(p, b_field, e_field, max_step, step)
             zgoubidoo_df = results_to_df(res)
             # To avoid having columns with the same name
@@ -103,7 +101,8 @@ def plot_dists(dfs: Dict[str: pd.DataFrame], dist_method=None):
         return abs(row.X - row.zgoubX)
 
     def ydist(row):
-        return abs(row.Y - row.zgoubY)
+        # return math.sqrt(abs(row.Y - row.zgoubY))
+        return row.Y - row.zgoubY
 
     def zdist(row):
         return abs(row.Z - row.zgoubZ)
@@ -147,7 +146,7 @@ def plot_correspondence(dfs: Dict):
 
 
 def main():
-    dir_path = 'Data/bend_validation/'
+    dir_path = 'Data/bend_validation/scan_dr'
 
     # List files from the data directory
     files: List[str] = []
@@ -166,28 +165,29 @@ def main():
         p = float(tok.split(sep='_')[-1])/100
         file_dict[filename] = p*default_brho
 
-
+    """
     # DEBUG
-    file_dict = {"Data/bend_validation/new_tests/data_y_m01_100.csv": default_brho,
-                 "Data/bend_validation/data_offset_y_01_100.csv": default_brho,
-                 "Data/bend_validation/new_tests/data_y_01_dr_105.csv": 1.05*default_brho,
-                 "Data/bend_validation/new_tests/data_y_05_100.csv": default_brho}
-
+    file_dict = {"Data/bend_validation/new_tests/data_y_0_dr_90.csv": 0.9*default_brho,
+                 "Data/bend_validation/new_tests/data_y_0_dr_100.csv": default_brho,
+                 "Data/bend_validation/new_tests/data_y_0_dr_105.csv": 1.05*default_brho}
+    """
     # Calculation procedure
     dfs = compute_correspondence(file_dict,
                                  b_field=bend_1m,
                                  e_field=e)
-    # dfs["Data/bend_validation/new_tests/data_y_m01_100.csv"].to_csv('y_m01_100.csv')
-    # dfs["Data/bend_validation/new_tests/data_y_05_100.csv"].to_csv('y_05_100.csv')
-    # dfs["Data/bend_validation/data_offset_y_01_100.csv"].to_csv('y_01_100.csv')
-    plot_dists(dfs, dist_method='')
+    # plot_dists(dfs, dist_method='')
     # plot_dists(dfs, dist_method='x')
-    plot_dists(dfs, dist_method='y')
-
+    # plot_dists(dfs, dist_method='y')
     plot_correspondence(dfs)
 
 
-def randtest(y_offset=0.1):
+def y_offset_distance(y_offset=0.1):
+    """
+    Computes the point wise distance between the trajectory of a particle starting at 0,0,0 and a particle starting at
+    0, y_offset, 0
+
+    :param y_offset:
+    """
     c = Coordinates(0, 0, 0, 0, 0, 1)
     c1 = Coordinates(0, y_offset, 0, 0, 0, 1)
 
@@ -208,7 +208,6 @@ def randtest(y_offset=0.1):
     df1 = df1.rename(columns={'X': 'off_X', 'Y': 'off_Y', 'Z': 'off_Z'})
 
     df = df.join(df1)
-    # zgoubidoo_core.postprocessing.display.results.plot_both_trajectories(df, 'normal vs offset y', [('X', 'Y'), ('off_X', 'off_Y')])
 
     def ydist(row):
         # return abs(abs(row.Y - row.off_Y) - y_offset)
@@ -222,11 +221,14 @@ def randtest(y_offset=0.1):
                          math.pow(row.Y - row.off_Y, 2) +
                          math.pow(row.Z - row.off_Z, 2)) - y_offset
     df['dist'] = df.apply(ydist, axis=1, raw=False)
-    fig = px.line(df, x=np.arange(0, df.shape[0], 1), y='dist', title="Normal vs Offset y of " + str(y_offset) + ", distance is along y")
+    fig = px.line(df, x=np.arange(0, df.shape[0], 1), y='dist',
+                  title="Normal vs Offset y of " + str(y_offset) + ", distance is along y")
     fig.show()
+
 
 if __name__ == '__main__':
     main()
+
     # offsets = [0.01, 0.1, 0.5, 1]
     # for offset in offsets:
-    #     randtest(offset)
+    #     y_offset_distance(offset)
