@@ -15,7 +15,6 @@ def plot_pos(positions):
             size=1,
         ),
         line=dict(
-            color='darkblue',
             width=2
         )
     ))
@@ -54,20 +53,27 @@ def plot_csv_xy(filename):
     fig.show()
 
 
-def plot_both_trajectories(df: pandas.DataFrame, title: str, col_names: List[Tuple[str, str]]):
-    fig = go.Figure(
-        layout=go.Layout(
-            title=go.layout.Title(text=title)
+def plot_both_trajectories(df: pandas.DataFrame, col_names: List[Tuple[str, str]], title: str = ''):
+    if title != '':
+        fig = go.Figure(
+            layout=go.Layout(
+                title=go.layout.Title(text=title),
+                template='xgridoff'
+            )
         )
-    )
+    else:
+        fig = go.Figure(
+            layout=go.Layout(
+                template='xgridoff',
+            ),
+        )
 
     fig.add_trace(
         go.Scatter(
             mode='markers',
             x=df[col_names[0][0]], y=df[col_names[0][1]],
             marker=dict(
-                size=10,
-                color='Red',
+                size=10
             ),
             name='Zgoubidoo',
         )
@@ -78,11 +84,38 @@ def plot_both_trajectories(df: pandas.DataFrame, title: str, col_names: List[Tup
             mode='markers',
             x=df[col_names[1][0]], y=df[col_names[1][1]],
             marker=dict(
-                size=5,
-                color='LightBlue',
+                size=9,
                 symbol='cross'
             ),
             name='Zgoubi',
         )
     )
+    set_default_layout(fig)
     fig.show()
+
+
+def set_default_layout(fig):
+    fig.update_layout({
+        'font': {'family': "serif", 'size': 18},
+        'plot_bgcolor': 'rgba(0,0,0,0)',
+        'xaxis': {
+            'showgrid': True,
+            'linecolor': 'black',
+            'linewidth': 1,
+            'mirror': True,
+            'gridcolor': 'grey',
+            'gridwidth': 0.1,
+        },
+        'yaxis': {
+            'linecolor': 'black',
+            'linewidth': 1,
+            'gridcolor': 'grey',
+            'gridwidth': 0.1,
+            'mirror': True,
+            'exponentformat': 'power',
+        },
+        'height': 600,
+        'width': 900,
+        'xaxis_title': "x (m)",
+        'yaxis_title': "y (m)",
+    })

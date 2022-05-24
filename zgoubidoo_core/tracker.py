@@ -51,7 +51,7 @@ def iteration(r: np.array,
     """An iteration of the ray-tracking process
 
     The functions b and e must return the partial derivatives of B and E s.t.
-    b(r)[i][j, k, l, ...] = B^(j, k, l...)_i where i is the ith cartesian coordinate
+    b(r)[i][j, k, l, ...z] = d^i B/djdkdl_z, the z component of the ith partial derivative of b with respect to j,k,l...
 
     :param r: Coordinates of the particle
     :param u: Unit velocity of the particle

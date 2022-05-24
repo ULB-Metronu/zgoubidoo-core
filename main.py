@@ -42,7 +42,7 @@ def main():
 
     res = tracker.integrate(p, b1, e, max_step, step)
     df = results_to_df(res)
-    plot_both_trajectories(df, 'Data/bend_validation/data_nominal_100.csv')
+    plot_pos(position_from_res(df))
 
 
 if __name__ == '__main__':

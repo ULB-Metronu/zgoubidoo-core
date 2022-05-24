@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import os
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 import numpy as np
 import pandas
@@ -12,20 +12,27 @@ from numba import jit
 import zgoubidoo_core.postprocessing.display.results
 from zgoubidoo_core import tracker
 from zgoubidoo_core.physics.coordinates import Coordinates
-from zgoubidoo_core.physics.fields.fields_init import b_partials_unif_z, init_field
+from zgoubidoo_core.physics.fields.fields_init import b_partials_unif_z, init_field, quad_field
 from zgoubidoo_core.physics.particles import Particle
 from zgoubidoo_core.postprocessing.data.results import results_to_df
-from zgoubidoo_core.postprocessing.display.results import plot_both_trajectories
+from zgoubidoo_core.postprocessing.display.results import plot_both_trajectories, set_default_layout
 
 import plotly.express as px
 
 
 @jit(nopython=True)
-def bend_1m(r: np.ndarray) -> tuple:
+def bend_1m(r: np.ndarray) -> Tuple:
     if 0 <= r[0] <= 1:
         return b_partials_unif_z(r, 0.5)
     else:
         return init_field()
+
+
+@jit(nopython=True)
+def quad_1m(r: np.ndarray) -> Tuple:
+    b0 = 0.1
+    r0 = 0.01
+    return quad_field(r, b0=b0, r0=r0, xl=1)
 
 
 @jit(nopython=True)
@@ -130,55 +137,41 @@ def plot_dists(dfs: Dict[str: pd.DataFrame], dist_method=None):
     for filename, df in dfs.items():
         df['dist'] = df.apply(dist_method, axis=1, raw=False)
         fig = px.line(df, x=np.arange(0, df.shape[0], 1), y='dist', title=filename + ", distance is " + dist_axis)
+        set_default_layout(fig)
         fig.show()
 
 
-def plot_correspondence(dfs: Dict):
+def plot_correspondence(dfs: Dict, x_axis='X', y_axis='Y'):
     """
     Plot the trajectories computed by zgoubi and zgoubidoo
 
     :param dfs: dict of the form {filename :dataframe}
     :return: None
     """
+    if x_axis == 'Y':
+        zgoudooX = 'Y'
+        zgoubiX = 'zgoubY'
+    elif x_axis == 'Z':
+        zgoudooX = 'Z'
+        zgoubiX = 'zgoubZ'
+    else:
+        print('Default value of x axis used')
+        zgoudooX = 'X'
+        zgoubiX = 'zgoubX'
+    if y_axis == 'Y':
+        zgoudooY = 'Y'
+        zgoubiY = 'zgoubY'
+    elif y_axis == 'Z':
+        zgoudooY = 'Z'
+        zgoubiY = 'zgoubZ'
+    else:
+        print('Default value of y axis used')
+        zgoudooY = 'X'
+        zgoubiY = 'zgoubX'
 
     for f_name, df in dfs.items():
-        plot_both_trajectories(df, f_name, [('X', 'Y'), ('zgoubX', 'zgoubY')])
-
-
-def main():
-    dir_path = 'Data/bend_validation/scan_dr'
-
-    # List files from the data directory
-    files: List[str] = []
-    for (f, dir_names, f_names) in os.walk(dir_path):
-        for f_name in f_names:
-            files.append(f+os.sep+f_name)
-
-    # Generate dict from file list
-    file_dict = {}
-    default_brho = 2.32182
-    for filename in files:
-        tokens = filename.split(sep=".")
-        tok = "".join(tokens[:-1])
-
-        # get brho %age
-        p = float(tok.split(sep='_')[-1])/100
-        file_dict[filename] = p*default_brho
-
-    """
-    # DEBUG
-    file_dict = {"Data/bend_validation/new_tests/data_y_0_dr_90.csv": 0.9*default_brho,
-                 "Data/bend_validation/new_tests/data_y_0_dr_100.csv": default_brho,
-                 "Data/bend_validation/new_tests/data_y_0_dr_105.csv": 1.05*default_brho}
-    """
-    # Calculation procedure
-    dfs = compute_correspondence(file_dict,
-                                 b_field=bend_1m,
-                                 e_field=e)
-    # plot_dists(dfs, dist_method='')
-    # plot_dists(dfs, dist_method='x')
-    # plot_dists(dfs, dist_method='y')
-    plot_correspondence(dfs)
+        # TODO plot_both_trajectories(df, [(zgoudooX, zgoudooY), (zgoubiX, zgoubiY)], f_name)
+        plot_both_trajectories(df, [(zgoudooX, zgoudooY), (zgoubiX, zgoubiY)])
 
 
 def y_offset_distance(y_offset=0.1):
@@ -224,6 +217,37 @@ def y_offset_distance(y_offset=0.1):
     fig = px.line(df, x=np.arange(0, df.shape[0], 1), y='dist',
                   title="Normal vs Offset y of " + str(y_offset) + ", distance is along y")
     fig.show()
+
+
+def main():
+    dir_path = 'Data/test_dir'
+
+    # List files from the data directory
+    files: List[str] = []
+    for (f, dir_names, f_names) in os.walk(dir_path):
+        for f_name in f_names:
+            files.append(f+os.sep+f_name)
+
+    # Generate dict from file list
+    file_dict = {}
+    default_brho = 2.32182
+    for filename in files:
+        tokens = filename.split(sep=".")
+        tok = "".join(tokens[:-1])
+
+        # get brho %age
+        p = float(tok.split(sep='_')[-1])/100
+        #p = 1
+        file_dict[filename] = p*default_brho
+
+    # Calculation procedure
+    dfs = compute_correspondence(file_dict,
+                                 b_field=bend_1m,
+                                 e_field=e)
+    #plot_dists(dfs, dist_method='')
+    # plot_dists(dfs, dist_method='x')
+    plot_dists(dfs, dist_method='y')
+    plot_correspondence(dfs, x_axis='X', y_axis='Y')
 
 
 if __name__ == '__main__':
