@@ -53,7 +53,7 @@ def plot_csv_xy(filename):
     fig.show()
 
 
-def plot_both_trajectories(df: pandas.DataFrame, col_names: List[Tuple[str, str]], title: str = ''):
+def plot_both_trajectories(df: pandas.DataFrame, col_names: List[Tuple[str, str]], title: str = '', xlabel=None, ylabel=None):
     if title != '':
         fig = go.Figure(
             layout=go.Layout(
@@ -90,11 +90,17 @@ def plot_both_trajectories(df: pandas.DataFrame, col_names: List[Tuple[str, str]
             name='Zgoubi',
         )
     )
-    set_default_layout(fig)
+
+    set_default_layout(fig, xlabel, ylabel)
     fig.show()
 
 
-def set_default_layout(fig):
+def set_default_layout(fig, xlabel=None, ylabel=None):
+    if xlabel is None:
+        xlabel = ""
+    if ylabel is None:
+        ylabel = ""
+
     fig.update_layout({
         'font': {'family': "serif", 'size': 18},
         'plot_bgcolor': 'rgba(0,0,0,0)',
@@ -116,6 +122,6 @@ def set_default_layout(fig):
         },
         'height': 600,
         'width': 900,
-        'xaxis_title': "x (m)",
-        'yaxis_title': "y (m)",
+        'xaxis_title': xlabel,
+        'yaxis_title': ylabel,
     })

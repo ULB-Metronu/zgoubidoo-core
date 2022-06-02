@@ -105,39 +105,41 @@ def plot_dists(dfs: Dict[str: pd.DataFrame], dist_method=None):
     """
 
     def xdist(row):
-        return abs(row.X - row.zgoubX)
+        return row.X - row.zgoubX
 
     def ydist(row):
         # return math.sqrt(abs(row.Y - row.zgoubY))
         return row.Y - row.zgoubY
 
     def zdist(row):
-        return abs(row.Z - row.zgoubZ)
+        return row.Z - row.zgoubZ
 
     def dist(row):
         return math.sqrt(math.pow(row.X - row.zgoubX, 2) +
                          math.pow(row.Y - row.zgoubY, 2) +
                          math.pow(row.Z - row.zgoubZ, 2))
 
-    dist_axis = "euclidian"
+    dist_axis = "dr (m)"
     if dist_method is None:
         dist_method = dist
+        dist_axis = "dr (m)"
     elif dist_method == 'x':
         dist_method = xdist
-        dist_axis = "along x"
+        dist_axis = "dx (m)"
     elif dist_method == 'y':
         dist_method = ydist
-        dist_axis = "along y"
+        dist_axis = "dy (m)"
     elif dist_method == 'z':
         dist_method = zdist
-        dist_axis = "along z"
+        dist_axis = "dz (m)"
     else:
         dist_method = dist
+        dist_axis = "dr (m)"
 
     for filename, df in dfs.items():
         df['dist'] = df.apply(dist_method, axis=1, raw=False)
-        fig = px.line(df, x=np.arange(0, df.shape[0], 1), y='dist', title=filename + ", distance is " + dist_axis)
-        set_default_layout(fig)
+        fig = px.line(df, x=np.arange(0, df.shape[0], 1), y='dist', title=filename)# + ", distance is " + dist_axis)
+        set_default_layout(fig, "iterations", dist_axis)
         fig.show()
 
 
@@ -151,27 +153,31 @@ def plot_correspondence(dfs: Dict, x_axis='X', y_axis='Y'):
     if x_axis == 'Y':
         zgoudooX = 'Y'
         zgoubiX = 'zgoubY'
+        xlabel = 'y (m)'
     elif x_axis == 'Z':
         zgoudooX = 'Z'
         zgoubiX = 'zgoubZ'
+        xlabel = 'y (m)'
     else:
-        print('Default value of x axis used')
         zgoudooX = 'X'
         zgoubiX = 'zgoubX'
+        xlabel = 'x (m)'
     if y_axis == 'Y':
         zgoudooY = 'Y'
         zgoubiY = 'zgoubY'
+        ylabel = 'y (m)'
     elif y_axis == 'Z':
         zgoudooY = 'Z'
         zgoubiY = 'zgoubZ'
+        ylabel = 'z (m)'
     else:
-        print('Default value of y axis used')
         zgoudooY = 'X'
         zgoubiY = 'zgoubX'
+        ylabel = 'x (m)'
 
     for f_name, df in dfs.items():
         # TODO plot_both_trajectories(df, [(zgoudooX, zgoudooY), (zgoubiX, zgoubiY)], f_name)
-        plot_both_trajectories(df, [(zgoudooX, zgoudooY), (zgoubiX, zgoubiY)])
+        plot_both_trajectories(df, [(zgoudooX, zgoudooY), (zgoubiX, zgoubiY)], xlabel=xlabel, ylabel=ylabel)
 
 
 def y_offset_distance(y_offset=0.1):
@@ -220,7 +226,7 @@ def y_offset_distance(y_offset=0.1):
 
 
 def main():
-    dir_path = 'Data/test_dir'
+    dir_path = 'Data/confirmation/quad_validation'
 
     # List files from the data directory
     files: List[str] = []
@@ -236,23 +242,20 @@ def main():
         tok = "".join(tokens[:-1])
 
         # get brho %age
-        p = float(tok.split(sep='_')[-1])/100
-        #p = 1
+        # p = float(tok.split(sep='_')[-1])/100
+        p = 1
         file_dict[filename] = p*default_brho
 
     # Calculation procedure
     dfs = compute_correspondence(file_dict,
-                                 b_field=bend_1m,
+                                 b_field=quad_1m,
                                  e_field=e)
-    #plot_dists(dfs, dist_method='')
+    # plot_dists(dfs, dist_method='')
     # plot_dists(dfs, dist_method='x')
-    plot_dists(dfs, dist_method='y')
+    # plot_dists(dfs, dist_method='y')
+    # plot_dists(dfs, dist_method='z')
     plot_correspondence(dfs, x_axis='X', y_axis='Y')
 
 
 if __name__ == '__main__':
     main()
-
-    # offsets = [0.01, 0.1, 0.5, 1]
-    # for offset in offsets:
-    #     y_offset_distance(offset)
